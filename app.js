@@ -7,25 +7,23 @@ require('dotenv').config();
 const { connectDB } = require('./src/config/database');
 const { syncDB } = require('./src/models/index');
 const authRoutes = require('./src/routes/authRoutes');
+const checkpointRoutes = require('./src/routes/checkpointRoutes');
 
 const app = express();
 
-// Security Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Rate Limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100
 });
 app.use(limiter);
 
-// Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/checkpoints', checkpointRoutes);
 
-// Test Route
 app.get('/', (req, res) => {
     res.json({ 
         message: 'Wasel Palestine API is running 🚀',
@@ -33,12 +31,16 @@ app.get('/', (req, res) => {
     });
 });
 
-// Start Server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
+
+const startServer = async () => {
     await connectDB();
     await syncDB();
-    console.log(`Server running on port ${PORT}`);
-});
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+};
+
+startServer();
 
 module.exports = app;
