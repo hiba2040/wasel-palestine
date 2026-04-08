@@ -65,9 +65,9 @@ Incident.verifyRaw = async (id, verified_by) => {
         const [rows] = await sequelize.query(
             `SELECT incidents.*, users.name as verified_by_name
              FROM incidents
-             LEFT JOIN users ON users.id = ?
-             WHERE incidents.id = ?`,
-            { replacements: [verified_by, id], transaction }
+            LEFT JOIN users ON users.id = incidents.created_by
+WHERE incidents.id = ?`,
+            { replacements: [id], transaction }
         );
         await transaction.commit();
         return rows[0];
