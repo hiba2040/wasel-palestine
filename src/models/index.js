@@ -8,6 +8,8 @@ const Report = require('./Report');
 const ReportVote = require('./ReportVote');
 const AlertSubscription = require('./AlertSubscription');
 const Alert = require('./Alert');
+const RouteEstimate = require('./RouteEstimate');
+const RouteCache = require('./RouteCache');
 
 // User associations
 User.hasMany(Report, { foreignKey: 'user_id' });
@@ -43,5 +45,7 @@ module.exports = {
     Report,
     ReportVote,
     AlertSubscription,
-    Alert
+    Alert,
+    RouteEstimate,
+    RouteCache
 };

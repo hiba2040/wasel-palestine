@@ -21,6 +21,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
-    "sequelize": "^6.37.8"
+    "sequelize": "^6.37.8",
+    "redis": "^4.6.0",
+    "node-cache": "^5.1.2"
   }
 }

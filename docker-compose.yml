@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: wasel-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-wasel_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-wasel_password}
+      POSTGRES_DB: ${DB_NAME:-wasel_db}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - wasel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-wasel_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: wasel-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - wasel-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Node.js API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wasel-api
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      
+      # Database
+      DB_NAME: ${DB_NAME:-wasel_db}
+      DB_USER: ${DB_USER:-wasel_user}
+      DB_PASSWORD: ${DB_PASSWORD:-wasel_password}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+      
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_change_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your_jwt_refresh_secret_key_change_in_production}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      
+      # Cache TTLs
+      ROUTE_CACHE_TTL: ${ROUTE_CACHE_TTL:-3600}
+      WEATHER_CACHE_TTL: ${WEATHER_CACHE_TTL:-1800}
+      CHECKPOINT_CACHE_TTL: ${CHECKPOINT_CACHE_TTL:-300}
+      DEFAULT_CACHE_TTL: ${DEFAULT_CACHE_TTL:-600}
+    
+    ports:
+      - "${PORT:-3000}:3000"
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    volumes:
+      - ./src:/app/src
+      - ./app.js:/app/app.js
+      - /app/node_modules
+    
+    networks:
+      - wasel-network
+    
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    
+    restart: unless-stopped
+
+  # Adminer for database management (optional, for development)
+  adminer:
+    image: adminer:latest
+    container_name: wasel-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - wasel-network
+    restart: unless-stopped
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  wasel-network:
+    driver: bridge

@@ -6,8 +6,10 @@ require('dotenv').config();
 
 const { connectDB } = require('./src/config/database');
 const { syncDB } = require('./src/models/index');
+const cacheManager = require('./src/services/cacheManager');
 const authRoutes = require('./src/routes/authRoutes');
 const checkpointRoutes = require('./src/routes/checkpointRoutes');
+const routeRoutes = require('./src/routes/routeRoutes');
 
 const app = express();
 
@@ -23,6 +25,7 @@ app.use(limiter);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/checkpoints', checkpointRoutes);
+app.use('/api/v1/routes', routeRoutes);
 
 app.get('/', (req, res) => {
     res.json({ 
@@ -36,6 +39,7 @@ const PORT = process.env.PORT || 3000;
 const startServer = async () => {
     await connectDB();
     await syncDB();
+    await cacheManager.initializeCache();
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
