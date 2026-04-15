@@ -1,56 +1,81 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User } = require('../models/index');
+const { User } = require('../models');
 
-// Register
 const register = async (req, res) => {
     try {
         const { name, email, password } = req.body;
 
-        // Check if user exists
-        const existingUser = await User.findOne({ where: { email } });
-        if (existingUser) {
-            return res.status(400).json({ message: 'Email already exists' });
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, email, and password are required'
+            });
         }
 
-        // Hash password
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email already exists'
+            });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create user
         const user = await User.create({
             name,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role: 'citizen'
         });
 
         res.status(201).json({
+            success: true,
             message: 'User registered successfully',
-            user: { id: user.id, name: user.name, email: user.email, role: user.role }
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
         });
-
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
     }
 };
 
-// Login
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Find user
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
         }
 
-        // Check password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
         }
 
-        // Generate tokens
         const accessToken = jwt.sign(
             { id: user.id, role: user.role },
             process.env.JWT_SECRET,
@@ -63,27 +88,50 @@ const login = async (req, res) => {
             { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN }
         );
 
-        res.json({
+        res.status(200).json({
+            success: true,
             message: 'Login successful',
             accessToken,
             refreshToken,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role }
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
         });
-
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
     }
 };
-
 
 const getMe = async (req, res) => {
     try {
         const user = await User.findByPk(req.user.id, {
             attributes: { exclude: ['password'] }
         });
-        res.json(user);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: user
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
     }
 };
 
@@ -92,14 +140,20 @@ const refreshToken = async (req, res) => {
         const { refreshToken } = req.body;
 
         if (!refreshToken) {
-            return res.status(401).json({ message: 'No refresh token provided' });
+            return res.status(401).json({
+                success: false,
+                message: 'No refresh token provided'
+            });
         }
 
         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
         const user = await User.findByPk(decoded.id);
         if (!user) {
-            return res.status(401).json({ message: 'User not found' });
+            return res.status(401).json({
+                success: false,
+                message: 'User not found'
+            });
         }
 
         const newAccessToken = jwt.sign(
@@ -108,11 +162,21 @@ const refreshToken = async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRES_IN }
         );
 
-        res.json({ accessToken: newAccessToken });
-
+        res.status(200).json({
+            success: true,
+            accessToken: newAccessToken
+        });
     } catch (error) {
-        res.status(401).json({ message: 'Invalid refresh token' });
+        res.status(401).json({
+            success: false,
+            message: 'Invalid refresh token'
+        });
     }
 };
 
-module.exports = { register, login, getMe, refreshToken };
+module.exports = {
+    register,
+    login,
+    getMe,
+    refreshToken
+};
