@@ -3,10 +3,10 @@
  * Handles route estimation, analysis, and safe corridor requests
  */
 
-const mockMapsService = require('../services/mockMapsService');
-const mockWeatherService = require('../services/mockWeatherService');
+const mockMapsService = require('../services/openRouteService');
+const mockWeatherService = require('../services/openWeatherService');
 const cacheManager = require('../services/cacheManager');
-const { Checkpoint, RouteEstimate, RouteCache } = require('../models');
+const { Checkpoint } = require('../models');
 
 /**
  * Calculate safety score based on checkpoints on route
@@ -24,25 +24,73 @@ const calculateSafetyScore = async (checkpoints) => {
     return Math.max(0, Math.min(100, safetyScore));
 };
 
+const toRad = (value) => (value * Math.PI) / 180;
+
+const haversineKm = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+};
+
+const pointToSegmentDistanceKm = (point, start, end) => {
+    const px = point.lon;
+    const py = point.lat;
+    const x1 = start.lon;
+    const y1 = start.lat;
+    const x2 = end.lon;
+    const y2 = end.lat;
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    if (dx === 0 && dy === 0) {
+        return haversineKm(py, px, y1, x1);
+    }
+
+    let t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+    t = Math.max(0, Math.min(1, t));
+
+    const projX = x1 + t * dx;
+    const projY = y1 + t * dy;
+
+    return haversineKm(py, px, projY, projX);
+};
+
 /**
  * Find checkpoints near route
  */
-const findCheckpointsNearRoute = async (sourceLat, sourceLon, destLat, destLon, radiusKm = 5) => {
+const findCheckpointsNearRoute = async (sourceLat, sourceLon, destLat, destLon, geometryCoordinates = [], radiusKm = 5) => {
     try {
         const allCheckpoints = await Checkpoint.findAll();
+
+        const routePath = Array.isArray(geometryCoordinates) && geometryCoordinates.length > 1
+            ? geometryCoordinates.map((coord) => ({ lon: Number(coord[0]), lat: Number(coord[1]) }))
+            : [
+                { lat: sourceLat, lon: sourceLon },
+                { lat: destLat, lon: destLon }
+            ];
         
         const nearbyCheckpoints = allCheckpoints.filter(checkpoint => {
-            const lat1 = sourceLat, lon1 = sourceLon;
-            const lat2 = destLat, lon2 = destLon;
-            const lat3 = checkpoint.latitude, lon3 = checkpoint.longitude;
+            const point = {
+                lat: Number(checkpoint.latitude),
+                lon: Number(checkpoint.longitude)
+            };
 
-            // Simple distance calculation
-            const distToSource = Math.sqrt(Math.pow(lat3 - lat1, 2) + Math.pow(lon3 - lon1, 2)) * 111; // ~111km per degree
-            const distToDest = Math.sqrt(Math.pow(lat3 - lat2, 2) + Math.pow(lon3 - lon2, 2)) * 111;
-            
-            // Point is near route if it's within radius of either endpoint or roughly on path
-            const minDistToRoute = Math.min(distToSource, distToDest);
-            return minDistToRoute <= radiusKm;
+            let minDistance = Number.POSITIVE_INFINITY;
+            for (let i = 0; i < routePath.length - 1; i += 1) {
+                const segmentDistance = pointToSegmentDistanceKm(point, routePath[i], routePath[i + 1]);
+                if (segmentDistance < minDistance) {
+                    minDistance = segmentDistance;
+                }
+            }
+
+            return minDistance <= radiusKm;
         });
 
         return nearbyCheckpoints;
@@ -71,6 +119,13 @@ const estimateRoute = async (req, res) => {
         const source = { lat: parseFloat(sourceLat), lon: parseFloat(sourceLon) };
         const dest = { lat: parseFloat(destLat), lon: parseFloat(destLon) };
 
+        if ([source.lat, source.lon, dest.lat, dest.lon].some(Number.isNaN)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid coordinate values'
+            });
+        }
+
         // Check cache first
         const cacheKey = `route:${source.lat}:${source.lon}:${dest.lat}:${dest.lon}`;
         let cachedRoute = await cacheManager.get(cacheKey);
@@ -84,25 +139,66 @@ const estimateRoute = async (req, res) => {
             });
         }
 
-        // Get route estimate from maps service
+        // Get route estimate from OpenRouteService
         const routeData = await mockMapsService.estimateRoute(
             source.lat, source.lon, dest.lat, dest.lon
         );
 
         if (!routeData.success) {
-            return res.status(500).json(routeData);
+            return res.status(503).json({
+                success: false,
+                message: 'external service unavailable',
+                service: 'openrouteservice',
+                details: routeData.details || routeData.error
+            });
         }
 
-        // Get weather data
-        const weatherData = await mockWeatherService.getWeatherByCoordinates(
-            source.lat, source.lon
-        );
-        const isWeatherHazardous = weatherData.success && 
-            mockWeatherService.isHazardousWeather(weatherData.data);
+        const weatherCacheKey = `weather:${source.lat}:${source.lon}`;
+        const weatherPayload = await cacheManager.getOrSet(
+            weatherCacheKey,
+            async () => {
+                const weatherData = await mockWeatherService.getWeatherByCoordinates(source.lat, source.lon);
+                if (!weatherData.success) {
+                    return {
+                        success: false,
+                        error: weatherData.error,
+                        details: weatherData.details
+                    };
+                }
 
-        // Find checkpoints near route
+                const hazardous = mockWeatherService.isHazardousWeather(weatherData.data);
+                return {
+                    success: true,
+                    payload: {
+                        condition: weatherData.data.weather?.[0]?.main || 'Unknown',
+                        temperature: weatherData.data.main?.temp ?? null,
+                        humidity: weatherData.data.main?.humidity ?? null,
+                        windSpeed: weatherData.data.wind?.speed ?? 0,
+                        hazardous
+                    }
+                };
+            },
+            parseInt(process.env.WEATHER_CACHE_TTL || '900', 10)
+        );
+
+        if (!weatherPayload?.success) {
+            return res.status(503).json({
+                success: false,
+                message: 'external service unavailable',
+                service: 'openweathermap',
+                details: weatherPayload?.details || weatherPayload?.error || 'Weather service failed'
+            });
+        }
+
+        const weatherSnapshot = weatherPayload.payload;
+
+        // Find checkpoints near real route geometry
         const nearbyCheckpoints = await findCheckpointsNearRoute(
-            source.lat, source.lon, dest.lat, dest.lon
+            source.lat,
+            source.lon,
+            dest.lat,
+            dest.lon,
+            routeData.data.geometryCoordinates || []
         );
         const safetyScore = await calculateSafetyScore(nearbyCheckpoints);
         const closedCheckpoints = nearbyCheckpoints.filter(c => c.status === 'closed' || c.status === 'restricted').length;
@@ -122,13 +218,7 @@ const estimateRoute = async (req, res) => {
                     lon: c.longitude
                 }))
             },
-            weather: weatherData.success ? {
-                condition: weatherData.data.weather?.[0]?.main || 'Unknown',
-                temperature: weatherData.data.main?.temp || 'N/A',
-                humidity: weatherData.data.main?.humidity || 'N/A',
-                windSpeed: weatherData.data.wind?.speed || 0,
-                hazardous: isWeatherHazardous
-            } : null,
+            weather: weatherSnapshot,
             recommendation: safetyScore > 70 ? 'Safe to travel' : 
                            safetyScore > 40 ? 'Use caution, some restricted checkpoints' :
                            'Not recommended, multiple closed checkpoints'
@@ -136,27 +226,6 @@ const estimateRoute = async (req, res) => {
 
         // Store in cache for 1 hour
         await cacheManager.set(cacheKey, response, 3600);
-
-        // Store in database
-        try {
-            await RouteEstimate.create({
-                source_lat: source.lat,
-                source_lon: source.lon,
-                destination_lat: dest.lat,
-                destination_lon: dest.lon,
-                distance_km: routeData.data.distance,
-                estimated_time_minutes: routeData.data.estimatedTime,
-                safety_score: safetyScore,
-                hazardous_checkpoints: closedCheckpoints,
-                weather_condition: weatherData.success ? weatherData.data.weather?.[0]?.main : 'unknown',
-                weather_hazard: isWeatherHazardous,
-                avg_speed_kmh: routeData.data.avgSpeed,
-                route_polyline: routeData.data.polyline,
-                is_cached: false
-            });
-        } catch (dbError) {
-            console.warn('Warning: Could not save route estimate to DB:', dbError.message);
-        }
 
         res.status(200).json({
             success: true,
@@ -191,20 +260,38 @@ const analyzeRoute = async (req, res) => {
         const source = { lat: parseFloat(sourceLat), lon: parseFloat(sourceLon) };
         const dest = { lat: parseFloat(destLat), lon: parseFloat(destLon) };
 
+        if ([source.lat, source.lon, dest.lat, dest.lon].some(Number.isNaN)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid coordinate values'
+            });
+        }
+
         // Get alternative routes
         const alternativeRoutes = await mockMapsService.getAlternativeRoutes(
             source.lat, source.lon, dest.lat, dest.lon
         );
 
         if (!alternativeRoutes.success) {
-            return res.status(500).json(alternativeRoutes);
+            return res.status(503).json({
+                success: false,
+                message: 'external service unavailable',
+                service: 'openrouteservice',
+                details: alternativeRoutes.details || alternativeRoutes.error
+            });
         }
 
         // Analyze each route
         const analyzedRoutes = [];
+        const routeGeometry = alternativeRoutes.geometryCoordinates || [];
+
         for (const route of alternativeRoutes.data) {
             const checkpoints = await findCheckpointsNearRoute(
-                source.lat, source.lon, dest.lat, dest.lon
+                source.lat,
+                source.lon,
+                dest.lat,
+                dest.lon,
+                routeGeometry
             );
             const safetyScore = await calculateSafetyScore(checkpoints);
 
@@ -251,15 +338,10 @@ const analyzeRoute = async (req, res) => {
  */
 const getSafeCorridors = async (req, res) => {
     try {
-        const { region } = req.query;
-
         // Get all open checkpoints
         const openCheckpoints = await Checkpoint.findAll({
             where: { status: 'open' }
         });
-
-        // Get high safety routes from cache
-        const safeRoutes = await RouteEstimate.getHighSafetyRoutes(20);
 
         // Create corridor map
         const corridors = openCheckpoints.map(checkpoint => ({
@@ -279,11 +361,7 @@ const getSafeCorridors = async (req, res) => {
             data: {
                 openCheckpointsCount: openCheckpoints.length,
                 corridors: corridors,
-                recommendedRoutes: safeRoutes.slice(0, 5).map(r => ({
-                    distance: r.distance_km,
-                    safetyScore: r.safety_score,
-                    estimatedTime: r.estimated_time_minutes
-                })),
+                recommendedRoutes: [],
                 message: `Found ${corridors.length} safe corridors`
             }
         });
@@ -303,18 +381,10 @@ const getSafeCorridors = async (req, res) => {
  */
 const getRouteHistory = async (req, res) => {
     try {
-        const { page = 1, limit = 10, sortBy = 'createdAt' } = req.query;
-
-        const history = await RouteEstimate.getAllRaw({
-            page: parseInt(page),
-            limit: parseInt(limit),
-            sortBy,
-            order: 'DESC'
-        });
-
         res.status(200).json({
             success: true,
-            data: history
+            data: [],
+            message: 'Route history is temporarily unavailable'
         });
     } catch (error) {
         console.error('Route history error:', error);
@@ -333,13 +403,11 @@ const getRouteHistory = async (req, res) => {
 const getCacheStatus = async (req, res) => {
     try {
         const cacheStatus = await cacheManager.getStatus();
-        const dbCacheStats = await RouteCache.getStatistics();
 
         res.status(200).json({
             success: true,
             data: {
-                redisCache: cacheStatus,
-                databaseCache: dbCacheStats
+                cacheStatus
             }
         });
     } catch (error) {

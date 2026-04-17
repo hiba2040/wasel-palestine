@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const routeController = require('../controllers/routeController');
-const { protect } = require('../middleware/authMiddleware');
 
 /**
  * @route   GET /api/v1/routes/estimate

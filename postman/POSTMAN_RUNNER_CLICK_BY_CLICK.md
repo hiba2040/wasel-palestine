@@ -1,109 +1,121 @@
-# Postman Runner Guide (Very Simple)
+# Postman Runner Guide (Updated - Real Integration)
 
-This is a click-by-click guide to test everything.
+Use this guide to test everything we built, including real route/weather integration.
 
-## 1) Start the app first
+## 1) Start services
 
-Open terminal in project folder:
+From project folder:
 
 ```bash
 npm start
 ```
 
-Keep this terminal open.
+Keep terminal open. Server must keep running.
 
-## 2) Import files in Postman
+## 2) Import Postman files
 
-1. Open Postman.
-2. Click **Import**.
-3. Import these two files:
-   - `postman/Wasel-Palestine-Full.postman_collection.json`
-   - `postman/Wasel-Local.postman_environment.json`
-4. Top-right, choose environment: **Wasel Local**.
+Import these files:
 
-## 3) Phase 1 (register + login)
+- `postman/Wasel-Palestine-Full.postman_collection.json`
+- `postman/Wasel-Runner-Ordered.postman_collection.json`
+- `postman/Wasel-Local.postman_environment.json`
 
-Run these requests manually once:
+Select environment: **Wasel Local**.
+
+## 3) First run (auth)
+
+Run in this order:
 
 1. `00 - Health -> GET /`
-2. `01 - Auth -> POST /api/v1/auth/register`
-3. `01 - Auth -> POST /api/v1/auth/login`
+2. `01 - Auth -> POST /register`
+3. `01 - Auth -> POST /login`
 
-After login, Postman saves token automatically.
+Token variables are saved automatically.
 
-## 4) Make user admin (one SQL step)
+## 4) Admin SQL step (required)
 
-You must do this before admin endpoints.
-
-1. Open pgAdmin Query Tool.
-2. Run:
+Before admin endpoints, run this in pgAdmin Query Tool:
 
 ```sql
 UPDATE users
 SET role = 'admin'
-WHERE email = '<your email from Postman env>';
+WHERE email = '<email variable value from Postman environment>';
 ```
-
-Tip: In Postman Environment, copy `email` value and paste it in SQL.
 
 Then run login again:
 
-4. `01 - Auth -> POST /api/v1/auth/login`
+- `01 - Auth -> POST /login`
 
-## 5) Run all tests with Collection Runner
+## 5) Run full ordered suite
 
-1. In Postman, open your collection: **Wasel Palestine Full API**.
-2. Click **Run**.
-3. Keep all requests selected.
-4. Click **Run Wasel Palestine Full API**.
+In Postman Runner, run collection:
 
-Now each request has friendly checks. If something fails, you will see clear messages like:
+- `Wasel Runner Ordered`
 
-- `403 on create checkpoint. Do SQL admin step, then login again.`
-- `404 on /status: checkpoint was not found. Usually deleted too early.`
-- `checkpointId is empty. Run POST /api/v1/checkpoints first.`
+It covers:
 
-If you want safer order, run in this order manually:
+- health
+- auth
+- checkpoints create/update/status
+- incidents/reports/alerts
+- routes estimate/analyze/safe-corridors/history/cache-status
+- cleanup delete checkpoint
 
-1. `00 - Health` (all)
-2. `01 - Auth` (all)
-3. `03 - Checkpoints` (all)
-4. `04 - Routes Estimation` (all)
+## 6) How to confirm it works correctly
 
-## 6) What "good" looks like
+### Core success signals
 
 - Most requests are green (200/201).
-- `POST /checkpoints` returns 201.
-- Routes endpoints return JSON with `success: true`.
-- No red crash in terminal.
+- Checkpoint create is 201.
+- Incidents/Reports/Alerts are 200 with `success: true`.
+- Route estimate/analyze are either:
+  - 200 with route/weather data, OR
+  - 503 with `message: external service unavailable` (acceptable fallback if external API has quota/network issue).
 
-## 7) Common red errors and fix
+### Route estimate success check
 
-- `404` on `GET /checkpoints/:id/status` or `GET /checkpoints/:id/history`
-  - Cause: checkpoint was deleted before these requests.
-  - Fix: use updated collection order (delete is now last), or run create checkpoint again.
+When 200, response should include:
 
-- `403 Access denied. Required roles: admin`
-  - Fix: run SQL admin update, then login again.
+- `data.route.distance` (number)
+- `data.weather.condition` (string)
+- `data.safety.score` (number)
 
-- `401 Invalid token`
-  - Fix: run login request again.
+### Cache status success check
 
-- `ECONNREFUSED` / cannot connect
-  - Fix: make sure `npm start` is running.
+`GET /api/v1/routes/cache-status` should return 200 and include:
 
-- `Database connection failed`
-  - Fix: check PostgreSQL service is running and `.env` has correct password.
+- `data.cacheStatus`
 
-## 8) Super quick checklist
+## 7) Common failures and fixes
 
-- [ ] API root works (`GET /`)
-- [ ] Register works
-- [ ] Login works
-- [ ] User changed to admin in SQL
-- [ ] Create checkpoint works
-- [ ] Update checkpoint status works
-- [ ] Route estimate works
-- [ ] Cache status works
+- `403 Access denied` on checkpoint admin requests:
+  - Run admin SQL update.
+  - Login again.
 
-If all boxes are done, your project is working correctly.
+- `401 Invalid token`:
+  - Run login again and retry.
+
+- `404 checkpoint not found`:
+  - Re-run create checkpoint request.
+
+- `503 external service unavailable` on route endpoints:
+  - Check internet.
+  - Check keys in `.env`:
+    - `OPENROUTESERVICE_API_KEY`
+    - `OPENWEATHER_API_KEY`
+  - Retry after short delay (provider limits can happen).
+
+- `ECONNREFUSED`:
+  - Make sure `npm start` is still running.
+
+## 8) Final quick checklist
+
+- [ ] Server runs without crash
+- [ ] Health endpoint works
+- [ ] Login works and token saved
+- [ ] Admin role set and admin endpoints work
+- [ ] Incidents/reports/alerts endpoints return success
+- [ ] Routes estimate/analyze/safe-corridors/history/cache-status respond correctly
+- [ ] No 500 caused by missing models
+
+If all boxes are checked, your implementation is working correctly.

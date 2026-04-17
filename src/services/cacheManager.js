@@ -11,6 +11,12 @@ require('dotenv').config();
 let redisClient;
 let memoryCache = new NodeCache({ stdTTL: 600, checkperiod: 120 });
 let useRedis = false;
+let redisErrorLogged = false;
+
+const isRedisEnabled = () => {
+    const raw = (process.env.REDIS_ENABLED || 'false').toLowerCase();
+    return raw === 'true' || raw === '1' || raw === 'yes';
+};
 
 const parsePort = (value, fallback) => {
     const parsed = Number.parseInt(value, 10);
@@ -22,7 +28,14 @@ const parsePort = (value, fallback) => {
  * Gracefully handles connection failures
  */
 const initializeCache = async () => {
+    if (!isRedisEnabled()) {
+        useRedis = false;
+        console.log('ℹ️ Redis disabled (REDIS_ENABLED=false). Using in-memory cache.');
+        return;
+    }
+
     try {
+        redisErrorLogged = false;
         redisClient = redis.createClient({
             socket: {
                 host: process.env.REDIS_HOST || 'localhost',
@@ -39,7 +52,11 @@ const initializeCache = async () => {
         });
 
         redisClient.on('error', (err) => {
-            console.warn('Redis error:', err.message);
+            if (!redisErrorLogged) {
+                const msg = err?.message || err?.code || 'unknown error';
+                console.warn('Redis error:', msg);
+                redisErrorLogged = true;
+            }
             useRedis = false;
         });
 
@@ -55,7 +72,8 @@ const initializeCache = async () => {
         await redisClient.connect();
         useRedis = true;
     } catch (error) {
-        console.warn('⚠️  Could not connect to Redis:', error.message);
+        const msg = error?.message || error?.code || 'unknown error';
+        console.warn('⚠️  Could not connect to Redis:', msg);
         console.warn('📦 Fallback to in-memory cache');
         useRedis = false;
     }

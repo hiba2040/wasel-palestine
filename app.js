@@ -10,6 +10,9 @@ const cacheManager = require('./src/services/cacheManager');
 const authRoutes = require('./src/routes/authRoutes');
 const checkpointRoutes = require('./src/routes/checkpointRoutes');
 const routeRoutes = require('./src/routes/routeRoutes');
+const incidentRoutes = require('./src/routes/incidentRoutes');
+const reportRoutes = require('./src/routes/reportRoutes');
+const alertRoutes = require('./src/routes/alertRoutes');
 
 const app = express();
 
@@ -26,6 +29,9 @@ app.use(limiter);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/checkpoints', checkpointRoutes);
 app.use('/api/v1/routes', routeRoutes);
+app.use('/api/v1/incidents', incidentRoutes);
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/alerts', alertRoutes);
 
 app.get('/', (req, res) => {
     res.json({ 

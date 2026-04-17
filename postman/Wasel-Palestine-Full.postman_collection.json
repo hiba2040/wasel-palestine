@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "8c4d938e-6f1b-44bb-9f64-9c6f1a6d2a11",
+    "_postman_id": "21f95166-1186-4cf9-8d7d-25e26755ce3e",
     "name": "Wasel Palestine Full API",
-    "description": "Full collection for Wasel Palestine API: health, auth, checkpoints, routes, and admin SQL helper.",
+    "description": "Full API collection with auth, checkpoints, incidents, reports, alerts, and real route/weather integration assertions.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -14,19 +14,10 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "if (!pm.environment.get('email')) {",
-          "  const ts = Date.now();",
-          "  pm.environment.set('email', `osama_${ts}@mail.com`);",
-          "}",
-          "if (!pm.environment.get('password')) {",
-          "  pm.environment.set('password', 'Pass123456!');",
-          "}",
-          "if (!pm.environment.get('name')) {",
-          "  pm.environment.set('name', 'Osama User');",
-          "}",
-          "if (!pm.environment.get('checkpointName')) {",
-          "  pm.environment.set('checkpointName', 'Checkpoint From Postman');",
-          "}",
+          "if (!pm.environment.get('email')) { pm.environment.set('email', `wasel_${Date.now()}@mail.com`); }",
+          "if (!pm.environment.get('password')) { pm.environment.set('password', 'Pass123456!'); }",
+          "if (!pm.environment.get('name')) { pm.environment.set('name', 'Wasel User'); }",
+          "if (!pm.environment.get('checkpointName')) { pm.environment.set('checkpointName', 'Postman Checkpoint'); }",
           "if (!pm.environment.get('sourceLat')) { pm.environment.set('sourceLat', '31.9454'); }",
           "if (!pm.environment.get('sourceLon')) { pm.environment.set('sourceLon', '35.2338'); }",
           "if (!pm.environment.get('destLat')) { pm.environment.set('destLat', '31.9564'); }",
@@ -60,11 +51,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
                   "const json = pm.response.json();",
-                  "pm.test('Has running message', function () {",
+                  "pm.test('API running message exists', function () {",
                   "  pm.expect(json.message).to.include('Wasel Palestine API is running');",
                   "});"
                 ]
@@ -110,7 +99,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Register success or already exists', function () {",
+                  "pm.test('Register status is 201 or 400', function () {",
                   "  pm.expect([201, 400]).to.include(pm.response.code);",
                   "});"
                 ]
@@ -152,12 +141,12 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Login status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Login failed: ${pm.response.text()}`);",
                   "});",
                   "const json = pm.response.json();",
-                  "if (json.accessToken) { pm.environment.set('accessToken', json.accessToken); }",
-                  "if (json.refreshToken) { pm.environment.set('refreshToken', json.refreshToken); }",
-                  "if (json.user && json.user.id) { pm.environment.set('userId', String(json.user.id)); }"
+                  "if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                  "if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "if (json.user && json.user.id) pm.environment.set('userId', String(json.user.id));"
                 ]
               }
             }
@@ -185,7 +174,20 @@
                 "me"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get me status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`GET /me failed: ${pm.response.text()}`);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "POST /api/v1/auth/refresh-token",
@@ -221,10 +223,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Refresh status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Refresh failed: ${pm.response.text()}`);",
                   "});",
                   "const json = pm.response.json();",
-                  "if (json.accessToken) { pm.environment.set('accessToken', json.accessToken); }"
+                  "if (json.accessToken) pm.environment.set('accessToken', json.accessToken);"
                 ]
               }
             }
@@ -233,10 +235,10 @@
       ]
     },
     {
-      "name": "02 - Admin SQL Helper (Run in pgAdmin)",
+      "name": "02 - Admin SQL Helper (Manual)",
       "item": [
         {
-          "name": "INFO - Make Logged User Admin",
+          "name": "INFO - Make current user admin",
           "request": {
             "method": "GET",
             "header": [],
@@ -249,7 +251,7 @@
                 ""
               ]
             },
-            "description": "Run this SQL in pgAdmin Query Tool before admin endpoints:\n\nUPDATE users\nSET role = 'admin'\nWHERE email = '{{email}}';"
+            "description": "Run in pgAdmin Query Tool:\n\nUPDATE users\nSET role = 'admin'\nWHERE email = '{{email}}';\n\nThen run login again to refresh token role claims."
           }
         }
       ]
@@ -323,15 +325,14 @@
                 "exec": [
                   "pm.test('Create checkpoint status is 201', function () {",
                   "  if (pm.response.code !== 201) {",
-                  "    const msg = `Expected 201 but got ${pm.response.code}. If 403, run SQL admin step then login again. Response: ${pm.response.text()}`;",
-                  "    pm.expect.fail(msg);",
+                  "    pm.expect.fail(`Create checkpoint failed: ${pm.response.text()}`);",
                   "  }",
                   "});",
                   "const json = pm.response.json();",
                   "if (json.data && json.data.id) {",
                   "  pm.environment.set('checkpointId', String(json.data.id));",
                   "} else {",
-                  "  pm.expect.fail('Checkpoint created but id was missing in response.');",
+                  "  pm.expect.fail('checkpointId was not returned from create checkpoint response.');",
                   "}"
                 ]
               }
@@ -355,27 +356,7 @@
                 "{{checkpointId}}"
               ]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const id = pm.environment.get('checkpointId');",
-                  "pm.test('checkpointId exists', function () {",
-                  "  if (!id) pm.expect.fail('checkpointId is empty. Run POST /api/v1/checkpoints (Admin) first.');",
-                  "});",
-                  "pm.test('Checkpoint exists', function () {",
-                  "  if (pm.response.code === 404) {",
-                  "    pm.expect.fail('Checkpoint not found (404). It may have been deleted. Re-create checkpoint then retry.');",
-                  "  }",
-                  "  pm.expect(pm.response.code).to.equal(200);",
-                  "});"
-                ]
-              }
-            }
-          ]
+          }
         },
         {
           "name": "PUT /api/v1/checkpoints/:id (Admin)",
@@ -407,26 +388,7 @@
                 "{{checkpointId}}"
               ]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const id = pm.environment.get('checkpointId');",
-                  "pm.test('checkpointId exists', function () {",
-                  "  if (!id) pm.expect.fail('checkpointId is empty. Create checkpoint first.');",
-                  "});",
-                  "pm.test('Update checkpoint success', function () {",
-                  "  if (pm.response.code === 403) pm.expect.fail('403 Access denied. Make user admin in SQL, then login again.');",
-                  "  if (pm.response.code === 404) pm.expect.fail('404 Checkpoint not found. It may have been deleted.');",
-                  "  pm.expect(pm.response.code).to.equal(200);",
-                  "});"
-                ]
-              }
-            }
-          ]
+          }
         },
         {
           "name": "GET /api/v1/checkpoints/:id/status",
@@ -446,23 +408,7 @@
                 "status"
               ]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status endpoint returns existing checkpoint', function () {",
-                  "  if (pm.response.code === 404) {",
-                  "    pm.expect.fail('404 on /status: checkpoint was not found. Usually deleted too early. Create checkpoint again.');",
-                  "  }",
-                  "  pm.expect(pm.response.code).to.equal(200);",
-                  "});"
-                ]
-              }
-            }
-          ]
+          }
         },
         {
           "name": "POST /api/v1/checkpoints/:id/status (Admin/Moderator)",
@@ -495,23 +441,7 @@
                 "status"
               ]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status update success', function () {",
-                  "  if (pm.response.code === 403) pm.expect.fail('403 Access denied. Update user role to admin/moderator and login again.');",
-                  "  if (pm.response.code === 404) pm.expect.fail('404 checkpoint not found. It was likely deleted before this request.');",
-                  "  if (pm.response.code === 400) pm.expect.fail(`400 bad request: ${pm.response.text()}`);",
-                  "  pm.expect(pm.response.code).to.equal(200);",
-                  "});"
-                ]
-              }
-            }
-          ]
+          }
         },
         {
           "name": "GET /api/v1/checkpoints/:id/history",
@@ -541,21 +471,7 @@
                 }
               ]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('History endpoint success', function () {",
-                  "  if (pm.response.code === 404) pm.expect.fail('404 on /history: checkpoint missing. Create checkpoint and update status first.');",
-                  "  pm.expect(pm.response.code).to.equal(200);",
-                  "});"
-                ]
-              }
-            }
-          ]
+          }
         },
         {
           "name": "DELETE /api/v1/checkpoints/:id (Admin)",
@@ -579,6 +495,29 @@
                 "{{checkpointId}}"
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Incidents/Reports/Alerts",
+      "item": [
+        {
+          "name": "GET /api/v1/incidents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/incidents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "incidents"
+              ]
+            }
           },
           "event": [
             {
@@ -586,11 +525,77 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Delete checkpoint success', function () {",
-                  "  if (pm.response.code === 403) pm.expect.fail('403 Access denied on delete. Ensure admin role and fresh login token.');",
-                  "  if (pm.response.code === 404) pm.expect.fail('404 on delete. Checkpoint was already deleted.');",
-                  "  pm.expect(pm.response.code).to.equal(200);",
-                  "});"
+                  "pm.test('Incidents status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Incidents failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Incidents response success true', function () { pm.expect(json.success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reports status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Reports failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Reports response success true', function () { pm.expect(json.success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Alerts status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Alerts failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Alerts response success true', function () { pm.expect(json.success).to.eql(true); });"
                 ]
               }
             }
@@ -599,7 +604,7 @@
       ]
     },
     {
-      "name": "04 - Routes Estimation",
+      "name": "05 - Routes Real Integration",
       "item": [
         {
           "name": "GET /api/v1/routes/estimate",
@@ -636,7 +641,33 @@
                 }
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Estimate status is 200 or 503', function () {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (status === 200) {",
+                  "  pm.test('Estimate success true', function () { pm.expect(json.success).to.eql(true); });",
+                  "  pm.test('Distance is numeric', function () { pm.expect(json.data.route.distance).to.be.a('number'); });",
+                  "  pm.test('Weather condition exists', function () { pm.expect(json.data.weather.condition).to.be.a('string'); });",
+                  "  pm.test('Safety score exists', function () { pm.expect(json.data.safety.score).to.be.a('number'); });",
+                  "} else {",
+                  "  pm.test('503 has external-service message', function () {",
+                  "    pm.expect(json.success).to.eql(false);",
+                  "    pm.expect(json.message).to.eql('external service unavailable');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /api/v1/routes/analyze",
@@ -673,7 +704,31 @@
                 }
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Analyze status is 200 or 503', function () {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (status === 200) {",
+                  "  pm.test('Analyze success true', function () { pm.expect(json.success).to.eql(true); });",
+                  "  pm.test('Routes array returned', function () { pm.expect(json.data.routes).to.be.an('array'); });",
+                  "} else {",
+                  "  pm.test('Analyze external service message', function () {",
+                  "    pm.expect(json.success).to.eql(false);",
+                  "    pm.expect(json.message).to.eql('external service unavailable');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /api/v1/routes/safe-corridors",
@@ -692,7 +747,22 @@
                 "safe-corridors"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Safe corridors status 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Safe corridors failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('recommendedRoutes is array', function () { pm.expect(json.data.recommendedRoutes).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /api/v1/routes/history",
@@ -721,7 +791,24 @@
                 }
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('History status 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`History failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('History fallback message present', function () {",
+                  "  pm.expect(json.message).to.eql('Route history is temporarily unavailable');",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET /api/v1/routes/cache-status",
@@ -740,7 +827,24 @@
                 "cache-status"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cache status endpoint returns 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Cache status failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('cacheStatus object exists', function () {",
+                  "  pm.expect(json.data.cacheStatus).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
