@@ -38,7 +38,8 @@ Incident.getAllRaw = async ({ type, severity, status, page, limit, sortBy, order
     const validSortFields = ['id', 'title', 'type', 'severity', 'status', 'createdAt'];
     const validOrders     = ['ASC', 'DESC'];
     const safeSortBy = validSortFields.includes(sortBy) ? sortBy : 'id';
-    const safeOrder  = validOrders.includes(order.toUpperCase()) ? order.toUpperCase() : 'ASC';
+    const normalizedOrder = (order || 'ASC').toUpperCase();
+    const safeOrder = validOrders.includes(normalizedOrder) ? normalizedOrder : 'ASC';
 
     const dataQuery = `
         SELECT * FROM incidents
@@ -54,8 +55,8 @@ Incident.getAllRaw = async ({ type, severity, status, page, limit, sortBy, order
     return { rows, total: parseInt(count[0].count) };
 };
 
-// VERIFY incident (Raw SQL transaction)
-Incident.verifyRaw = async (id, verified_by) => {
+
+Incident.verifyRaw = async (id) => {
     const transaction = await sequelize.transaction();
     try {
         await sequelize.query(

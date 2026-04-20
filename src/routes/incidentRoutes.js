@@ -15,7 +15,7 @@ router.get('/',    getAllIncidents);
 router.get('/:id', getIncidentById);
 
 
-router.post('/', protect, createIncident);
+router.post('/', protect, isModerator, createIncident);
 
 
 router.put('/:id',        protect, isModerator, updateIncident);

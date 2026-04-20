@@ -10,11 +10,14 @@ const protect = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (error) {
-        res.status(401).json({ message: 'Invalid token' });
+       return res.status(401).json({
+    success: false,
+    message: 'No token provided'
+});
     }
 };
 
-// alias عشان الـ routes الجديدة
+
 const verifyToken = protect;
 
 const isAdmin = (req, res, next) => {
@@ -31,7 +34,7 @@ const isModerator = (req, res, next) => {
     next();
 };
 
-// dynamic role checker عشان requireRole('admin', 'moderator')
+
 const requireRole = (...roles) => {
     return (req, res, next) => {
         if (!roles.includes(req.user.role)) {

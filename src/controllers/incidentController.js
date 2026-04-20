@@ -77,12 +77,13 @@ const updateIncident = async (req, res) => {
         await incident.update({ checkpoint_id, type, severity, title, description, status, latitude, longitude });
 
         res.json({ success: true, data: incident });
-    } catch (err) {
-        if (err.name === 'SequelizeValidationError') {
-            return res.status(400).json({ success: false, message: err.errors[0].message });
-        }
-        res.status(500).json({ success: false, message: 'Internal server error' });
+  } catch (err) {
+    console.error('updateIncident error:', err);
+    if (err.name === 'SequelizeValidationError') {
+        return res.status(400).json({ success: false, message: err.errors[0].message });
     }
+    res.status(500).json({ success: false, message: 'Internal server error' });
+}
 };
 
 
@@ -93,9 +94,10 @@ const deleteIncident = async (req, res) => {
 
         await incident.destroy();
         res.json({ success: true, message: 'Incident deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    }
+   } catch (err) {
+    console.error('deleteIncident error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+}
 };
 
 const verifyIncident = async (req, res) => {
@@ -107,11 +109,12 @@ const verifyIncident = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Incident is already verified' });
         }
 
-        const updated = await Incident.verifyRaw(req.params.id, req.user.id);
+        const updated = await Incident.verifyRaw(req.params.id);
         res.json({ success: true, data: updated });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    }
+  } catch (err) {
+    console.error('verifyIncident error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+}
 };
 
 module.exports = {
