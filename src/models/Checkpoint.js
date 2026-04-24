@@ -42,7 +42,9 @@ const Checkpoint = sequelize.define('Checkpoint', {
 // ============================================================
 // Raw SQL — getAll with filters, sorting, pagination
 // ============================================================
-Checkpoint.getAllRaw = async ({ status, region, page = 1, limit = 10, sortBy = 'id', order = 'ASC' }) => {
+Checkpoint.getAllRaw = async ({ status, region, page = 1, limit = 10, sortBy = 'id', order = 'ASC' } = {}) => {
+  page = parseInt(page) || 1;
+  limit = parseInt(limit) || 10;
   const offset = (page - 1) * limit;
   const validSortFields = ['id', 'name', 'region', 'status', 'createdAt'];
   const validOrder = ['ASC', 'DESC'];
