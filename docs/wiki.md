@@ -240,6 +240,7 @@ project-root/
 ├── docker-compose.yml
 ├── app.js
 ├── package.json
+├──.env.example
 
 
 ---
