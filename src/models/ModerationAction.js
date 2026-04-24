@@ -1,8 +1,8 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const ReportVote = sequelize.define(
-  'ReportVote',
+const ModerationAction = sequelize.define(
+  'ModerationAction',
   {
     id: {
       type: DataTypes.INTEGER,
@@ -13,25 +13,23 @@ const ReportVote = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    user_id: {
+    moderator_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    vote: {
-      type: DataTypes.ENUM('up', 'down'),
+    action: {
+      type: DataTypes.ENUM('verified', 'rejected', 'duplicate'),
       allowNull: false,
+    },
+    note: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
   },
   {
-    tableName: 'report_votes',
+    tableName: 'moderation_actions',
     timestamps: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ['report_id', 'user_id'],
-      },
-    ],
   }
 );
 
-module.exports = ReportVote;
+module.exports = ModerationAction;

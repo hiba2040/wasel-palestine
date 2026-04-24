@@ -1,0 +1,853 @@
+{
+  "info": {
+    "_postman_id": "21f95166-1186-4cf9-8d7d-25e26755ce3e",
+    "name": "Wasel Palestine Full API",
+    "description": "Full API collection with auth, checkpoints, incidents, reports, alerts, and real route/weather integration assertions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('email')) { pm.environment.set('email', `wasel_${Date.now()}@mail.com`); }",
+          "if (!pm.environment.get('password')) { pm.environment.set('password', 'Pass123456!'); }",
+          "if (!pm.environment.get('name')) { pm.environment.set('name', 'Wasel User'); }",
+          "if (!pm.environment.get('checkpointName')) { pm.environment.set('checkpointName', 'Postman Checkpoint'); }",
+          "if (!pm.environment.get('sourceLat')) { pm.environment.set('sourceLat', '31.9454'); }",
+          "if (!pm.environment.get('sourceLon')) { pm.environment.set('sourceLon', '35.2338'); }",
+          "if (!pm.environment.get('destLat')) { pm.environment.set('destLat', '31.9564'); }",
+          "if (!pm.environment.get('destLon')) { pm.environment.set('destLon', '35.1978'); }"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Health",
+      "item": [
+        {
+          "name": "GET /",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('API running message exists', function () {",
+                  "  pm.expect(json.message).to.include('Wasel Palestine API is running');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Auth",
+      "item": [
+        {
+          "name": "POST /api/v1/auth/register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Register status is 201 or 400', function () {",
+                  "  pm.expect([201, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/auth/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Login failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+                  "if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "if (json.user && json.user.id) pm.environment.set('userId', String(json.user.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/auth/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get me status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`GET /me failed: ${pm.response.text()}`);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/auth/refresh-token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refresh status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Refresh failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.accessToken) pm.environment.set('accessToken', json.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Admin SQL Helper (Manual)",
+      "item": [
+        {
+          "name": "INFO - Make current user admin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Run in pgAdmin Query Tool:\n\nUPDATE users\nSET role = 'admin'\nWHERE email = '{{email}}';\n\nThen run login again to refresh token role claims."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Checkpoints",
+      "item": [
+        {
+          "name": "GET /api/v1/checkpoints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/checkpoints (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{checkpointName}}\",\n  \"latitude\": 31.95,\n  \"longitude\": 35.22,\n  \"status\": \"open\",\n  \"description\": \"Created from Postman\",\n  \"region\": \"Ramallah\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create checkpoint status is 201', function () {",
+                  "  if (pm.response.code !== 201) {",
+                  "    pm.expect.fail(`Create checkpoint failed: ${pm.response.text()}`);",
+                  "  }",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.environment.set('checkpointId', String(json.data.id));",
+                  "} else {",
+                  "  pm.expect.fail('checkpointId was not returned from create checkpoint response.');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/checkpoints/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpointId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/checkpoints/:id (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{checkpointName}} Updated\",\n  \"latitude\": 31.951,\n  \"longitude\": 35.221,\n  \"description\": \"Updated from Postman\",\n  \"region\": \"Ramallah\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpointId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/checkpoints/:id/status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpointId}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/checkpoints/:id/status (Admin/Moderator)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"restricted\",\n  \"note\": \"Set from Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpointId}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/checkpoints/:id/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}/history?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpointId}}",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/checkpoints/:id (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkpoints",
+                "{{checkpointId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Incidents/Reports/Alerts",
+      "item": [
+        {
+          "name": "GET /api/v1/incidents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/incidents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "incidents"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Incidents status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Incidents failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Incidents response success true', function () { pm.expect(json.success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reports status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Reports failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Reports response success true', function () { pm.expect(json.success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Alerts status is 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Alerts failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Alerts response success true', function () { pm.expect(json.success).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Routes Real Integration",
+      "item": [
+        {
+          "name": "GET /api/v1/routes/estimate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/routes/estimate?sourceLat={{sourceLat}}&sourceLon={{sourceLon}}&destLat={{destLat}}&destLon={{destLon}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "routes",
+                "estimate"
+              ],
+              "query": [
+                {
+                  "key": "sourceLat",
+                  "value": "{{sourceLat}}"
+                },
+                {
+                  "key": "sourceLon",
+                  "value": "{{sourceLon}}"
+                },
+                {
+                  "key": "destLat",
+                  "value": "{{destLat}}"
+                },
+                {
+                  "key": "destLon",
+                  "value": "{{destLon}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Estimate status is 200 or 503', function () {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (status === 200) {",
+                  "  pm.test('Estimate success true', function () { pm.expect(json.success).to.eql(true); });",
+                  "  pm.test('Distance is numeric', function () { pm.expect(json.data.route.distance).to.be.a('number'); });",
+                  "  pm.test('Weather condition exists', function () { pm.expect(json.data.weather.condition).to.be.a('string'); });",
+                  "  pm.test('Safety score exists', function () { pm.expect(json.data.safety.score).to.be.a('number'); });",
+                  "} else {",
+                  "  pm.test('503 has external-service message', function () {",
+                  "    pm.expect(json.success).to.eql(false);",
+                  "    pm.expect(json.message).to.eql('external service unavailable');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/routes/analyze",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/routes/analyze?sourceLat={{sourceLat}}&sourceLon={{sourceLon}}&destLat={{destLat}}&destLon={{destLon}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "routes",
+                "analyze"
+              ],
+              "query": [
+                {
+                  "key": "sourceLat",
+                  "value": "{{sourceLat}}"
+                },
+                {
+                  "key": "sourceLon",
+                  "value": "{{sourceLon}}"
+                },
+                {
+                  "key": "destLat",
+                  "value": "{{destLat}}"
+                },
+                {
+                  "key": "destLon",
+                  "value": "{{destLon}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const status = pm.response.code;",
+                  "pm.test('Analyze status is 200 or 503', function () {",
+                  "  pm.expect([200, 503]).to.include(status);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (status === 200) {",
+                  "  pm.test('Analyze success true', function () { pm.expect(json.success).to.eql(true); });",
+                  "  pm.test('Routes array returned', function () { pm.expect(json.data.routes).to.be.an('array'); });",
+                  "} else {",
+                  "  pm.test('Analyze external service message', function () {",
+                  "    pm.expect(json.success).to.eql(false);",
+                  "    pm.expect(json.message).to.eql('external service unavailable');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/routes/safe-corridors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/routes/safe-corridors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "routes",
+                "safe-corridors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Safe corridors status 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Safe corridors failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('recommendedRoutes is array', function () { pm.expect(json.data.recommendedRoutes).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/routes/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/routes/history?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "routes",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('History status 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`History failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('History fallback message present', function () {",
+                  "  pm.expect(json.message).to.eql('Route history is temporarily unavailable');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/routes/cache-status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/routes/cache-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "routes",
+                "cache-status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cache status endpoint returns 200', function () {",
+                  "  if (pm.response.code !== 200) pm.expect.fail(`Cache status failed: ${pm.response.text()}`);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('cacheStatus object exists', function () {",
+                  "  pm.expect(json.data.cacheStatus).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": []
+}
