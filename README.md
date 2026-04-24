@@ -246,24 +246,21 @@ WEATHER_CACHE_TTL=...
 
 project-root/
 
-src/  
- ├── config/  
- ├── controllers/  
- ├── middleware/  
- ├── models/  
- ├── routes/  
- ├── services/  
-
-tests/  
-docs/  
-postman/  
-
-Dockerfile  
-docker-compose.yml  
-app.js  
-package.json  
-.env.example  
-
+├── src/
+│ ├── config/
+│ ├── controllers/
+│ ├── middleware/
+│ ├── models/
+│ ├── routes/
+│ ├── services/
+│
+├── tests/
+├── docs/
+├── Dockerfile
+├── docker-compose.yml
+├── app.js
+├── package.json
+├──.env.example
 ---
 
 ## Git Workflow
@@ -290,10 +287,14 @@ Dima → Reports, Voting, Alerts
 Radeena → Routes, External APIs, Docker, k6  
 
 ---
+## 📘 Project Wiki
 
+See full documentation here:
+docs/wiki.md
 ## Notes
 
 - Uses real external APIs (routing + weather)
 - External failures do not crash the system
 - API documentation via API-Dog
 - Performance tested using k6
+
