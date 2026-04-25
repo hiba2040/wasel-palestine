@@ -245,7 +245,7 @@ WEATHER_CACHE_TTL=...
 ## Project Structure
 
 project-root/
-
+```txt
 ├── src/
 │ ├── config/
 │ ├── controllers/
@@ -261,7 +261,7 @@ project-root/
 ├── app.js
 ├── package.json
 ├──.env.example
----
+```
 
 ## Git Workflow
 
