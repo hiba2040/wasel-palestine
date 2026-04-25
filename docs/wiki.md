@@ -225,7 +225,7 @@ Scripts:
 
 ## File Structure
 project-root/
-
+```txt
 ├── src/
 │ ├── config/
 │ ├── controllers/
@@ -241,7 +241,7 @@ project-root/
 ├── app.js
 ├── package.json
 ├──.env.example
-
+```
 
 ---
 
