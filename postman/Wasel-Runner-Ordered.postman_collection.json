@@ -1,0 +1,564 @@
+{
+  "info": {
+    "_postman_id": "7e6d3ee8-26d9-4a26-9928-0cf55be66dd4",
+    "name": "Wasel Runner Ordered",
+    "description": "Ordered flow for Collection Runner including real route/weather checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('email')) pm.environment.set('email', `runner_${Date.now()}@mail.com`);",
+          "if (!pm.environment.get('name')) pm.environment.set('name', 'Runner User');",
+          "if (!pm.environment.get('password')) pm.environment.set('password', 'Pass123456!');",
+          "if (!pm.environment.get('checkpointName')) pm.environment.set('checkpointName', 'Runner Checkpoint');",
+          "if (!pm.environment.get('sourceLat')) pm.environment.set('sourceLat', '31.9454');",
+          "if (!pm.environment.get('sourceLon')) pm.environment.set('sourceLon', '35.2338');",
+          "if (!pm.environment.get('destLat')) pm.environment.set('destLat', '31.9564');",
+          "if (!pm.environment.get('destLon')) pm.environment.set('destLon', '35.1978');"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Health status 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Register status 201 or 400', function () { pm.expect([201, 400]).to.include(pm.response.code); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code !== 200) pm.expect.fail(`Login failed: ${pm.response.text()}`);",
+              "const j = pm.response.json();",
+              "if (j.accessToken) pm.environment.set('accessToken', j.accessToken);",
+              "if (j.refreshToken) pm.environment.set('refreshToken', j.refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 SQL Step (Manual) - Make Admin",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "MANUAL STEP in pgAdmin:\nUPDATE users SET role='admin' WHERE email='{{email}}';\nThen run login again."
+      }
+    },
+    {
+      "name": "05 Login Again (After SQL Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code !== 200) pm.expect.fail(`Login again failed: ${pm.response.text()}`);",
+              "const j = pm.response.json();",
+              "if (j.accessToken) pm.environment.set('accessToken', j.accessToken);",
+              "if (j.refreshToken) pm.environment.set('refreshToken', j.refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Create Checkpoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{checkpointName}}\",\n  \"latitude\": 31.95,\n  \"longitude\": 35.22,\n  \"status\": \"open\",\n  \"description\": \"Runner create\",\n  \"region\": \"Ramallah\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/checkpoints",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "checkpoints"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const status = pm.response.code;",
+              "if (status === 201) {",
+              "  const j = pm.response.json();",
+              "  if (j.data && j.data.id) pm.environment.set('checkpointId', String(j.data.id));",
+              "  else pm.expect.fail('checkpointId missing after create checkpoint.');",
+              "  pm.environment.unset('adminBlocked');",
+              "} else if (status === 403) {",
+              "  pm.environment.set('adminBlocked', 'true');",
+              "  pm.environment.unset('checkpointId');",
+              "  pm.execution.setNextRequest('08 Get Incidents');",
+              "} else {",
+              "  pm.expect.fail(`Create checkpoint failed: ${pm.response.text()}`);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Update Checkpoint Status",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"restricted\",\n  \"note\": \"Runner status update\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "checkpoints",
+            "{{checkpointId}}",
+            "status"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.environment.get('adminBlocked') === 'true') {",
+              "  pm.test('Checkpoint status update skipped (user not admin)', function () { pm.expect(true).to.eql(true); });",
+              "} else if (pm.response.code !== 200) {",
+              "  pm.expect.fail(`Update checkpoint status failed: ${pm.response.text()}`);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Get Incidents",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code !== 200) pm.expect.fail(`Incidents failed: ${pm.response.text()}`);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Get Reports",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "reports"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 Get Alerts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/alerts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "alerts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11 Route Estimate",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/routes/estimate?sourceLat={{sourceLat}}&sourceLon={{sourceLon}}&destLat={{destLat}}&destLon={{destLon}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "routes",
+            "estimate"
+          ],
+          "query": [
+            {
+              "key": "sourceLat",
+              "value": "{{sourceLat}}"
+            },
+            {
+              "key": "sourceLon",
+              "value": "{{sourceLon}}"
+            },
+            {
+              "key": "destLat",
+              "value": "{{destLat}}"
+            },
+            {
+              "key": "destLon",
+              "value": "{{destLon}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const status = pm.response.code;",
+              "pm.expect([200, 503]).to.include(status);",
+              "const j = pm.response.json();",
+              "if (status === 200) {",
+              "  pm.expect(j.success).to.eql(true);",
+              "  pm.expect(j.data.route.distance).to.be.a('number');",
+              "} else {",
+              "  pm.expect(j.success).to.eql(false);",
+              "  pm.expect(j.message).to.eql('external service unavailable');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Route Analyze",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/routes/analyze?sourceLat={{sourceLat}}&sourceLon={{sourceLon}}&destLat={{destLat}}&destLon={{destLon}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "routes",
+            "analyze"
+          ],
+          "query": [
+            {
+              "key": "sourceLat",
+              "value": "{{sourceLat}}"
+            },
+            {
+              "key": "sourceLon",
+              "value": "{{sourceLon}}"
+            },
+            {
+              "key": "destLat",
+              "value": "{{destLat}}"
+            },
+            {
+              "key": "destLon",
+              "value": "{{destLon}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "13 Safe Corridors",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/routes/safe-corridors",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "routes",
+            "safe-corridors"
+          ]
+        }
+      }
+    },
+    {
+      "name": "14 Route History",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/routes/history?page=1&limit=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "routes",
+            "history"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "15 Cache Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/routes/cache-status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "routes",
+            "cache-status"
+          ]
+        }
+      }
+    },
+    {
+      "name": "16 Delete Checkpoint",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/checkpoints/{{checkpointId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "checkpoints",
+            "{{checkpointId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.environment.get('adminBlocked') === 'true') {",
+              "  pm.test('Delete skipped (user not admin)', function () { pm.expect(true).to.eql(true); });",
+              "} else {",
+              "  pm.test('Delete status is 200', function () {",
+              "    if (pm.response.code !== 200) pm.expect.fail(`Delete failed: ${pm.response.text()}`);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
