@@ -147,7 +147,7 @@ npm start
 
 ---
 
-## 🔹 Testing
+##  Testing
 
 The project includes multiple testing strategies:
 
