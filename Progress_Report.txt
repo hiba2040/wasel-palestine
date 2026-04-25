@@ -1,0 +1,128 @@
+### 👩‍💻 Hiba — Contributions
+
+Hiba played a major role in building the **core foundation of the system** together with Raghad.
+
+At the beginning of the project, Hiba collaborated closely with Raghad on:
+
+* Setting up the project structure and organizing the folder hierarchy
+* Configuring the backend environment and initializing the application
+* Designing and setting up the database
+* Defining the core models and relationships
+* Preparing the base system required before implementing features
+
+Hiba was then responsible for the **Checkpoints module end-to-end**, including:
+
+* Designing the checkpoints schema and structure
+* Implementing full CRUD operations for checkpoints
+* Developing filtering, sorting, and pagination functionality
+* Implementing checkpoint status management
+* Building checkpoint status history tracking
+* Handling validation, error responses, and data consistency
+* Integrating checkpoint routes within the API structure
+
+In addition, Hiba contributed to the **Authentication module** along with Raghad and Dima, including:
+
+* Implementing JWT-based authentication
+* Supporting login functionality and token handling
+* Testing authentication and protected endpoints
+
+Hiba also worked with Raghad on **integration and testing**, including:
+
+* Merging the Checkpoints module with the Incidents module
+* Testing API endpoints after integration
+* Resolving conflicts and ensuring consistent system behavior
+
+Finally, Hiba contributed to **project documentation**, including:
+
+* Writing and structuring the Wiki together with Raghad
+* Preparing and refining the README file
+* Reviewing the final system before submission
+
+
+
+### 👩‍💻 Raghad — Contributions
+
+Raghad played a key role in the project starting from the **initial setup and system foundation**.
+
+At the beginning of the project, Raghad worked closely with Hiba on:
+
+* Setting up the project structure and organizing the folder hierarchy
+* Configuring the backend environment and application entry point
+* Designing and initializing the database
+* Defining the core models and relationships
+* Preparing the base system needed before implementing features
+
+Raghad was then responsible for the **Incidents module end-to-end**, including:
+
+* Designing the incidents schema and relationships
+* Implementing full CRUD operations for incidents
+* Implementing filtering, sorting, and pagination using query parameters
+* Developing incident verification logic (restricted to moderators/admins)
+* Handling validation, error responses, and status updates
+* Integrating incident routes within the API structure
+* Applying role-based authorization using middleware
+
+In addition, Raghad contributed to the **Authentication module** along with Hiba and Dima, including:
+
+* Implementing JWT-based authentication
+* Handling login functionality and token generation
+* Testing protected routes and access control
+
+Raghad also collaborated with Hiba on **integration and testing**, including:
+
+* Merging the Incidents module with the Checkpoints module
+* Testing APIs after integration
+* Resolving conflicts and ensuring consistency across modules
+
+Finally, Raghad contributed to **project documentation**, including:
+
+* Writing and structuring the Wiki together with Hiba
+* Preparing and refining the README file
+* Reviewing and validating the final integrated system before submission
+
+
+
+### 👩‍💻 Dima — Contributions
+
+Dima played a major role in the project by developing core features within the **Reports and Alerts modules**, in addition to contributing to system integration, testing, and documentation.
+
+Dima was primarily responsible for the **Reports module and Voting system**, including:
+
+* Implementing the Reports API with full functionality
+* Developing the voting system with proper logic and constraints
+* Preventing duplicate votes per user
+* Designing and implementing the moderation workflow (verify/reject reports)
+* Adding duplicate detection mechanisms for reports
+* Maintaining an audit log to track all moderation actions
+
+Dima was also responsible for the **Alerts module**, including:
+
+* Implementing alert creation and management
+* Developing user-specific alert retrieval
+* Adding mark-as-read functionality
+* Designing and implementing the Alert Subscriptions feature (based on location and category)
+
+In addition, Dima contributed to **system design and documentation**, including:
+
+* Creating the ERD (Entity Relationship Diagram) based on the PostgreSQL schema
+* Preparing the UML diagram to represent system structure and component relationships
+
+On the testing side, Dima handled **API testing using Apidog**, including:
+
+* Creating comprehensive test cases for all related endpoints
+* Validating correct API behavior
+* Testing error handling scenarios
+* Ensuring role-based access control works correctly
+
+Dima also contributed to **integration efforts**, including:
+
+* Merging her work with Rodaina’s into the `integration-modules` branch
+* Resolving merge conflicts during integration
+* Re-testing all endpoints after merging to ensure system stability
+
+Additionally, Dima contributed to **shared modules and final validation**, including:
+
+* Participating in the Authentication module implementation with the team
+* Supporting full system testing after final integration
+* Ensuring the system is stable and fully functional before submission
+
