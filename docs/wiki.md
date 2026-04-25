@@ -289,7 +289,8 @@ The documentation includes:
 - error responses
 
 API-Dog export is included in the repository.
-API Documentation:
+
+API Documentation: https://qfyak33mtk.apidog.io
 ## 🔹 API Collections Mapping
 
 The implemented features in this Wiki are linked with the API-Dog documentation using the same numbering structure.
