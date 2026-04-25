@@ -153,9 +153,8 @@ The API documentation is organized using the same feature numbering used in the 
 - Feature 5 — Alerts & Subscriptions
 - Feature 6 — Routes, Maps & Weather Integration
 
-API documentation export is available inside:
 
-postman/
+API Documentation: https://qfyak33mtk.apidog.io
 
 ---
 
